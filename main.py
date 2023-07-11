@@ -12,7 +12,7 @@ items = []
 def scrapeSA(): # scrapes item names of weapons with high volume/popularity from link(s) below
     HEADERS = {'User-Agent': 'Mozilla/5.0'}
     url = "https://csgo.steamanalyst.com/type/rifle/all/popular/"
-    # url = "https://csgo.steamanalyst.com/type/rifle/all/volume/"
+    #url = "https://csgo.steamanalyst.com/type/rifle/all/volume/"
 
     r = requests.get(url, headers = HEADERS)
     soup = BeautifulSoup(r.text, 'html.parser') # if fails, use r.page_source instead
@@ -29,7 +29,7 @@ def scrapeSA(): # scrapes item names of weapons with high volume/popularity from
 buffLinkList = []
 dNameAsKey = {}
 def SaToBuff(): # takes item names from above def and gets their buff item ids
-    with open('buffids.txt', encoding = 'utf-8') as id: # opens buffids txt file to turn it into dictionary
+    with open('assets/buffids.txt', encoding = 'utf-8') as id: # opens buffids txt file to turn it into dictionary
         for line in id:
             (key,value) = line.rstrip('\n').split(';')
             dNameAsKey[str(value)] = key
@@ -40,10 +40,11 @@ def SaToBuff(): # takes item names from above def and gets their buff item ids
 
 def scrapeBuff(): # scrapes item prices from buff, looks for items > 2.5% less $ then next highest priced listing
     headOption = webdriver.ChromeOptions()
-    headOption.add_argument("--headless")
+    headOption.add_experimental_option('excludeSwitches', ['enable-logging'])
+    #headOption.add_argument("--headless")
     for i in buffLinkList:
         driver = webdriver.Chrome(options=headOption)
-        cookies = pickle.load(open("cookies.pkl", "rb"))
+        cookies = pickle.load(open("assets/cookies.pkl", "rb"))
         driver.execute_cdp_cmd('Network.enable', {})               #tbh i have no idea how this works, but it does. 
         for cookie in cookies:                                     #uses cookies to login to selenium tabs on buff
             driver.execute_cdp_cmd('Network.setCookie', cookie)
@@ -57,10 +58,13 @@ def scrapeBuff(): # scrapes item prices from buff, looks for items > 2.5% less $
             strong = x.find('strong','f_Strong')
             if strong:
                 cnyList.append(strong.get_text().replace('¥','').replace(' ',''))
-                if len(cnyList) > 1:
-                    if float(cnyList[1])/float(cnyList[0]) > 2.5:
-                        print('found ' + i)
-                    print('no good')
+                if len(cnyList) == 2:
+                    perc = ((float(cnyList[1])-float(cnyList[0]))/(float(cnyList[0])+float(cnyList[1]))/2)*100
+                    if perc > 2.5:
+                        print('Found ' + str(perc) + " % profit: " + i)
+                    else:
+                        print('no good: ' + str(perc))
+                    cnyList = []
         #driver.close()
 
 
