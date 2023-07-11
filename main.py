@@ -1,8 +1,12 @@
+import pickle
 import requests
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 from currency_converter import CurrencyConverter
 c = CurrencyConverter()
-import time
 
 items = []
 def scrapeSA(): # scrapes item names of weapons with high volume/popularity from link(s) below
@@ -30,25 +34,37 @@ def SaToBuff(): # takes item names from above def and gets their buff item ids
             (key,value) = line.rstrip('\n').split(';')
             dNameAsKey[str(value)] = key
     for i in items:
-        buffLinkList.append('https://buff.163.com/goods/' + dNameAsKey[i] + '?from=market#tab=selling') # takes list of items, compares to dictionary with ids, grabs item ID, turns into buff link for scrapingg
+        buffLinkList.append('https://buff.163.com/goods/' + dNameAsKey[i] + '?from=market#tab=selling&page_num=1') # takes list of items, compares to dictionary with ids, grabs item ID, turns into buff link for scrapingg
     # print(buffLinkList)
 
 
 def scrapeBuff(): # scrapes item prices from buff, looks for items > 2.5% less $ then next highest priced listing
-    HEADERS = {'User-Agent': 'Mozilla/5.0'}
+    headOption = webdriver.ChromeOptions()
+    headOption.add_argument("--headless")
     for i in buffLinkList:
-        url = i
+        driver = webdriver.Chrome(options=headOption)
+        cookies = pickle.load(open("cookies.pkl", "rb"))
+        driver.execute_cdp_cmd('Network.enable', {})               #tbh i have no idea how this works, but it does. 
+        for cookie in cookies:                                     #uses cookies to login to selenium tabs on buff
+            driver.execute_cdp_cmd('Network.setCookie', cookie)
+        driver.execute_cdp_cmd('Network.disable', {})
 
-        r = requests.get(url, headers = HEADERS)
-        soup = BeautifulSoup(r.text, 'html.parser')
+        driver.get(i)
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        left = soup.find_all('td','t_Left', limit = 8)
+        cnyList = []
+        for x in left:
+            strong = x.find('strong','f_Strong')
+            if strong:
+                cnyList.append(strong.get_text().replace('¥','').replace(' ',''))
+                if len(cnyList) > 1:
+                    if float(cnyList[1])/float(cnyList[0]) > 2.5:
+                        print('found ' + i)
+                    print('no good')
+        #driver.close()
 
-        for x in soup.find_all('strong', class_='f_Strong', limit = 2): # debug with breakpoint here, chinese yuan currency sign broke program
-            print(soup.get(x))
 
-
-
-
-
+    
 
 scrapeSA()
 SaToBuff()
